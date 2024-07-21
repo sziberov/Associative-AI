@@ -35,7 +35,7 @@
 					 синоним;
 					 бежать и бегать - синонимы -> бежать, бегать, синоним".
 */
-window.memoryJSON = `[
+let memoryJSON = `[
 	{ "ID": 0, "content": "буква", "associatedIDs": [1, 2, 3, 15, 16, 17, 18, 19] },
     { "ID": 1, "content": "а", "associatedIDs": [0, 44] },
     { "ID": 2, "content": "б", "associatedIDs": [0, 44] },
