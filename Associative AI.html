@@ -1,0 +1,224 @@
+<script src="memory.js"></script>
+<script>
+	let sleep = (time) => new Promise((resolve) => setTimeout(resolve, Math.ceil(time)));
+
+	function levenshteinDistance(a, b) {
+		let matrix = Array.from({ length: a.length+1 }, () => Array(b.length+1).fill(0));
+
+		for(let i = 0; i <= a.length; i++) matrix[i][0] = i;
+		for(let j = 0; j <= b.length; j++) matrix[0][j] = j;
+
+		for(let i = 1; i <= a.length; i++) {
+			for(let j = 1; j <= b.length; j++) {
+				let cost = a[i-1] === b[j-1] ? 0 : 1;
+
+				matrix[i][j] = Math.min(
+					matrix[i-1][j]+1,		// Удаление
+					matrix[i][j-1]+1,		// Вставка
+					matrix[i-1][j-1]+cost	// Замена
+				);
+			}
+		}
+
+		return matrix[a.length][b.length]
+	}
+
+	function tokenize(text) {
+		return text.toLowerCase().split(/\s+/);
+	}
+
+	// ----------------------------------------------------------------
+
+	let memory = [],
+		levels = {
+			anxiety: 0,
+			astonishment: 0,
+			boredom: 0,
+			confusion: 0,
+			curiosity: 0,
+			fatigue: 0,
+			happiness: 0,
+			hunger: 0,
+			inspiration: 0,
+			pain: 0,
+			stress: 0
+		}
+
+	function memory_load(memoryJSON) {
+		memory = JSON.parse(memoryJSON);
+
+
+
+		memory_sortAssociations();
+	}
+
+	function memory_save() {
+		memory_sortAssociations();
+
+		return JSON.stringify(memory, undefined, 4);
+	}
+
+	function memory_createElement(temporary, content) {
+		memory.push({
+			temporary: temporary,
+			content: content,
+			levels: { ...levels },
+			associatiatedIDs: []
+		});
+
+		return memory.length-1;
+	}
+
+	function memory_destroyElement(ID) {
+		let element = memory.find(v => v.ID === ID);
+
+		if(element == null) {
+			return;
+		}
+
+		for(let e of memory) {
+			e.associatiatedIDs = e.associatiatedIDs.filter(v => v !== ID);
+		}
+
+		delete memory[ID]
+	}
+
+	function memory_createAssociation(leftID, rightID) {
+		let element = memory.find(v => v.ID === leftID);
+
+		if(element != null && !element.associatiatedIDs.includes(rightID)) {
+			element.associatiatedIDs.push(rightID);
+		}
+	}
+
+	function memory_destroyAssociation(leftID, rightID) {
+		let element = memory.find(v => v.ID === leftID);
+
+		if(element != null) {
+			element.associatiatedIDs = element.associatiatedIDs.filter(v => v !== rightID);
+		}
+	}
+
+	function memory_sortAssociations() {
+	//	memory.sort((a, b) => a.ID-b.ID);
+
+		let IDMap = {},
+			newID = 0;
+
+		for(let v of memory) {
+			let oldID = v.ID;
+
+			v.ID = newID;
+			IDMap[oldID] = newID;
+			newID++;
+		}
+
+		for(let v of memory) {
+			v.associatedIDs = v.associatedIDs.map(oldID => IDMap[oldID]);
+		}
+
+		return memory;
+	}
+
+	function memory_findAssociations(query, initialThreshold = 1, timeLimit = Math.min(memory.length, 2000)) {
+		let exactMatches = [],
+			partialMatches = [],
+			queryWords = tokenize(query),
+			currentThreshold = initialThreshold,
+			startTime = Date.now();
+
+		// Поиск точных и частичных совпадений
+		while(true) {
+			for(let element of memory) {
+				// Точные
+				if(element.content === query) {
+					exactMatches.push(element);
+
+					continue;
+				}
+
+				// Частичные по словам
+				let elementWords = tokenize(element.content),
+					foundPartialMatch = false;
+
+				for(let queryWord of queryWords) {
+					for(let elementWord of elementWords) {
+						let distance = levenshteinDistance(queryWord, elementWord);
+
+						if(distance <= currentThreshold) {
+							foundPartialMatch = true;
+
+							break;
+						}
+					}
+
+					if(foundPartialMatch) break;
+				}
+
+				if(foundPartialMatch) {
+					partialMatches.push(element);
+				}
+			}
+
+			if(exactMatches.length > 0 || partialMatches.length > 0) {
+				break;
+			}
+
+			if(Date.now()-startTime > timeLimit) {
+				console.log('memory_findAssociations: Time ['+timeLimit+'] out.');
+
+				break;
+			}
+
+			currentThreshold++;
+		}
+
+		let matches = [...exactMatches, ...partialMatches]
+
+		// Поиск ассоциированных элементов
+		let associatedElements = []
+
+		for(let element of matches) {
+			for(let associatedID of element.associatedIDs) {
+				let associatedElement = memory.find(v => v.ID === associatedID);
+
+				if(associatedElement && !matches.includes(associatedElement) && !associatedElements.includes(associatedElement)) {
+					associatedElements.push(associatedElement);
+				}
+			}
+		}
+
+		return [...matches, ...associatedElements]
+	}
+
+	function levels_set(key, value) {
+		if(!(key in levels)) {
+			return;
+		}
+
+		levels[key] = value;
+
+		let total = Object.values(levels).reduce((sum, value) => sum+value, 0);
+
+		if(total > 1) {
+			let factor = (1-value)/(total-value);
+
+			for(let k in levels) {
+				if(k !== key) {
+					levels[k] *= factor;
+				}
+			}
+		}
+	}
+
+	function mind_analizeSelf() {}
+	function mind_reevaluateMemory() {}
+	function mind_generateHypotheses() {}
+	function mind_createAssociations() {}
+
+	async function mind_think() {
+	//	await sleep(125);
+	}
+
+	setInterval(mind_think, 125);
+</script>
